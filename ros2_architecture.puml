@@ -1,0 +1,94 @@
+@startuml
+title ROS2 Architecture - rehab_robot_ver2
+skinparam componentStyle rectangle
+
+package "RViz & UI" {
+  [RViz Panel\nrviz_custom_plugins] as RVIZ
+}
+
+package "Kinematics" {
+  [Kinematics Node\nrehab_robot_ver2_control/kinematics] as KIN
+}
+
+package "Control" {
+  [Robot Controller\nrehab_robot_ver2_control/robot_controller] as CONT
+  [Trajectory Tuning\nrehab_robot_ver2_control/trajectory_tuning_node] as TUNE
+  [Velocity Modes\nrehab_robot_ver2_control/velocity_modes] as VMODE
+  [Admittance/Gravity\ngravity_compensation/simple_gravity_compensation_node] as GC
+}
+
+package "Hardware Interface" {
+  [ODrive Interface\ncan_odrive_interface::ODriveInterface] as ODRV
+  [CAN Bus & Motors\n(hardware)] as HW
+}
+
+' RViz ↔ Kinematics (FK/IK)
+RVIZ --> KIN : /ForwardKinematics/request\nKinematicsFKRequest
+KIN --> RVIZ : /ForwardKinematics/response\nKinematicsFKResponse
+
+RVIZ --> KIN : /InverseKinematics/request\nKinematicsIKRequest
+KIN --> RVIZ : /InverseKinematics/response\nKinematicsIKResponse
+
+' Kinematics -> Controller -> ODrive -> Hardware
+KIN --> CONT : /InverseKinematics/response (IK result)
+CONT --> ODRV : SendPositionCommand / SendTorqueCommand
+ODRV --> HW : CAN frames (motor commands)
+HW --> ODRV : encoder feedback
+
+' Encoder feedback to Kinematics
+ODRV --> KIN : /base_joint/m_pos, /shoulder_joint/m_pos, /elbow_joint/m_pos\n(std_msgs/Float64)
+
+' Joint states for visualization
+KIN --> JointStates : publish (/joint_states, sensor_msgs/JointState)
+RVIZ <-- JointStates : visualize (/joint_states)
+
+' Trajectory tuning and modes
+TUNE --> ODRV : SetTrajectoryVelLimit/SetTrajectoryAccelLimit/SetTrajectoryInertia\n(calls via API)
+VMODE --> ODRV : SetTrajectory* (applies preset profiles on /velocity_modes)
+
+' Gravity/Admittance
+GC --> ODRV : publish torque commands or call SendTorqueCommand\n(or publish to /motor/torque_cmd)
+
+' Notes with file references
+note right of RVIZ
+  Panel code:
+  rviz_custom_plugins/src/kinematics_panel.cpp
+  Messages defined in:
+  rviz_custom_plugins/msg/*.msg
+end note
+
+note right of KIN
+  KDL-based kinematics & IK:
+  rehab_robot_ver2_control/src/kinematics.cpp
+  URDF used:
+  rehab_robot_ver2/urdf/rehab_robot_ver2.urdf
+end note
+
+note right of CONT
+  IK-to-motor bridge:
+  rehab_robot_ver2_control/src/robotController.cpp
+end note
+
+note right of ODRV
+  ODrive CAN interface:
+  can_odrive_interface/include/can_odrive_interface/odrive_interface.hpp
+  Methods: SetTrajectoryVelLimit, SetTrajectoryAccelLimit, SetTrajectoryInertia
+end note
+
+note right of TUNE
+  Trajectory tuning node:
+  rehab_robot_ver2_control/src/velocity_config_node.cpp
+end note
+
+note right of VMODE
+  Velocity modes node:
+  rehab_robot_ver2_control/src/velocity_modes.cpp
+end note
+
+note right of GC
+  Gravity compensation & params:
+  gravity_compensation/include/gravity_compensation.hpp
+  gravity_compensation/config/admittance_joint_config.yaml
+end note
+
+@enduml

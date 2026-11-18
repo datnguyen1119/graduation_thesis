@@ -1,0 +1,36 @@
+simple_gravity_compensation_node:
+  ros__parameters:
+    control_rate_hz: 100
+
+    base_joint:
+      id: 0
+      mass: 2.0
+      length: 0.179
+      gravity_sign: 1.0
+      damping_b: 0.10
+      max_torque: 2.0
+      initial_angle: 0.0
+      gear_ratio: 1.0
+
+    shoulder_joint:
+      id: 1
+      mass: 3.2
+      length: 0.156
+      gravity_sign: 1.0
+      damping_b: 0.15
+      max_torque: 3.0
+      initial_angle: 0.0
+      gear_ratio: 1.0
+
+    elbow_joint:
+      id: 2
+      mass: 0.565
+      # mass: 2.0
+      length: 0.179
+      gravity_sign: 1.0
+      torque_sign: 1.0
+      max_torque: 3.0
+      damping_b: 0.10
+      initial_angle: -0.1
+      gear_ratio: 1.0
+
